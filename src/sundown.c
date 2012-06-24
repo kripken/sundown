@@ -19,54 +19,35 @@
 #include "buffer.h"
 
 #include <errno.h>
-#include <getopt.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
-#define READ_UNIT 1024
-#define OUTPUT_UNIT 64
+// http://drj11.wordpress.com/2007/04/08/sizeofchar-is-1/
+char *str_to_html(const char *in) {
+  struct buf *ob;
 
-int
-main(int argc, char **argv)
-{
-	struct buf *ib, *ob;
-	size_t ret;
-	FILE *in = stdin;
+  struct sd_callbacks callbacks;
+  struct html_renderopt options;
+  struct sd_markdown *markdown;
 
-	/* opening the file if given from the command line */
-	if (argc > 1) {
-		in = fopen(argv[1], "r");
-		if (!in) {
-			fprintf(stderr, "Unable to open input file \"%s\": %s\n", argv[0], strerror(errno));
-			return 1;
-		}
-	}
+  // Use 2048 for block size.
+  ob = bufnew(2048);
 
-	/* reading everything */
-	ib = bufnew(READ_UNIT);
-	bufgrow(ib, READ_UNIT);
-	while ((ret = fread(ib->data + ib->size, 1, ib->asize - ib->size, in)) > 0) {
-		ib->size += ret;
-		bufgrow(ib, ib->size + READ_UNIT);
-	}
+  sdhtml_renderer(&callbacks, &options, 0);
+  /* Enable all extensions. */
+  markdown = sd_markdown_new(MKDEXT_NO_INTRA_EMPHASIS | MKDEXT_TABLES | MKDEXT_FENCED_CODE | MKDEXT_AUTOLINK | MKDEXT_STRIKETHROUGH | MKDEXT_SPACE_HEADERS | MKDEXT_SUPERSCRIPT | MKDEXT_LAX_SPACING, 16, &callbacks, &options);
 
-	if (in != stdin)
-		fclose(in);
+  // Do not strlen + 1 or it will render incomplete markup.
+  sd_markdown_render(ob, (uint8_t*) in, strlen(in), markdown);
+  sd_markdown_free(markdown);
 
-	/* performing markdown parsing */
-	ob = bufnew(OUTPUT_UNIT);
+  // +1 for null termination of string.
+  char* html = malloc(ob->size + 1);
+  strcpy(html, bufcstr(ob));
 
-	sdhtml_smartypants(ob, ib->data, ib->size);
+  /* cleanup */  
+  bufrelease(ob);
 
-	/* writing the result to stdout */
-	(void)fwrite(ob->data, 1, ob->size, stdout);
-
-	/* cleanup */
-	bufrelease(ib);
-	bufrelease(ob);
-
-	return 0;
+  return html;
 }
-
-/* vim: set filetype=c: */

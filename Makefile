@@ -25,6 +25,8 @@ CC=gcc
 
 
 SUNDOWN_SRC=\
+	src/sundown_wrap.o \
+	src/sundown.o \
 	src/markdown.o \
 	src/stack.o \
 	src/buffer.o \
@@ -34,25 +36,13 @@ SUNDOWN_SRC=\
 	html/houdini_html_e.o \
 	html/houdini_href_e.o
 
-all:		libsundown.so sundown smartypants html_blocks
+all:		libsundown.so html_blocks
 
 .PHONY:		all clean
 
 # libraries
-
-libsundown.so:	libsundown.so.1
-	ln -f -s $^ $@
-
-libsundown.so.1: $(SUNDOWN_SRC)
+libsundown.so: $(SUNDOWN_SRC)
 	$(CC) $(LDFLAGS) -shared -Wl $^ -o $@
-
-# executables
-
-sundown:	examples/sundown.o $(SUNDOWN_SRC)
-	$(CC) $(LDFLAGS) $^ -o $@
-
-smartypants: examples/smartypants.o $(SUNDOWN_SRC)
-	$(CC) $(LDFLAGS) $^ -o $@
 
 # perfect hashing
 html_blocks: src/html_blocks.h
@@ -64,7 +54,7 @@ src/html_blocks.h: html_block_names.txt
 # housekeeping
 clean:
 	rm -f src/*.o html/*.o examples/*.o
-	rm -f libsundown.so libsundown.so.1 sundown smartypants
+	rm -f libsundown.so sundown smartypants
 	rm -f sundown.exe smartypants.exe
 	rm -rf $(DEPDIR)
 
